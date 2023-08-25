@@ -3,6 +3,7 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 import logging
+import pytz
 from datetime import datetime, timedelta
 
 from psycopg2 import ProgrammingError
@@ -499,8 +500,25 @@ class BiSQLView(models.Model):
             return self.name
         return "{} ({})".format(
             self.name,
-            datetime.utcnow().strftime("%m/%d/%Y %H:%M:%S UTC"),
+            self._prepare_string_datetime(),
         )
+
+    def _prepare_string_datetime(self):
+        self.ensure_one()
+        tz_param = self.env["ir.config_parameter"].sudo().get_param(
+            "bi_sql_editor.tz", 'UTC')
+        time_format = self.env["ir.config_parameter"].sudo().get_param(
+            "bi_sql_editor.datetime_format", '%m/%d/%Y %H:%M:%S %Z')
+        try:
+            tz = pytz.timezone(tz_param)
+        except Exception:
+            tz = pytz.utc
+        try:
+            datetime.now().strftime(time_format)
+        except Exception:
+            time_format = "%m/%d/%Y %H:%M:%S %Z"
+        now = datetime.now(tz)
+        return now.strftime(time_format)
 
     def _prepare_menu(self):
         self.ensure_one()
